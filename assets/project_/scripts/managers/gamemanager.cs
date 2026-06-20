@@ -1,25 +1,21 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
-    [Header("Level Progress Settings")]
+    [Header("Player Stats & State")]
+    public int playerHealth = 100;
+    public int score = 0;
+    public bool isGameOver = false;
+
+    [Header("Level & Progression Systems")]
     public int currentLevel = 1;
     public int currentKillsInLevel = 0;
-
-    // Progression rules: Kill 10, 15, 25, 30, 50 zombies
-    private readonly int[] killsRequiredPerLevel = { 10, 15, 25, 30, 50 };
-
-    [Header("Game State")]
-    private bool isPaused = false;
-    private float escPressTimer = 0f;
-    private int escPressCount = 0;
+    public int killsNeededPerLevel = 10;
 
     void Awake()
     {
-        // Simple Singleton pattern to access the manager easily from other scripts
         if (Instance == null)
         {
             Instance = this;
@@ -31,115 +27,78 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    void Update()
+    /// <summary>
+    /// Processes player damage tracking and handles death state triggers.
+    /// </summary>
+    public void TakeDamage(int amount)
     {
-        HandlePauseAndExit();
+        if (isGameOver) return;
+
+        playerHealth -= amount;
+        Debug.Log($"Player hit! Remaining Health: {playerHealth}");
+
+        if (playerHealth <= 0)
+        {
+            TriggerGameOver();
+        }
     }
 
-    // Call this function from your zombie health scripts whenever a zombie dies
-    public void RegisterZombieKill()
+    /// <summary>
+    /// Adds points to the player's runtime score metric.
+    /// </summary>
+    public void AddScore(int points)
+    {
+        score += points;
+        Debug.Log($"Score updated: {score}");
+    }
+
+    /// <summary>
+    /// Increments the player's kill count and evaluates level completion logic.
+    /// </summary>
+    public void RegisterKill()
     {
         currentKillsInLevel++;
-        Debug.Log($"Zombie killed! Progress: {currentKillsInLevel}/{GetRequiredKillsForCurrentLevel()}");
+        AddScore(100); // Reward standard kill points
+        Debug.Log($"Zombie eliminated! Progress: {currentKillsInLevel}/{killsNeededPerLevel}");
 
-        if (currentKillsInLevel >= GetRequiredKillsForCurrentLevel())
+        if (currentKillsInLevel >= killsNeededPerLevel)
         {
-            AdvanceLevel();
+            AdvanceToNextLevel();
         }
     }
 
-    int GetRequiredKillsForCurrentLevel()
+    void AdvanceToNextLevel()
     {
-        // Safe check to avoid index out of bounds
-        if (currentLevel >= 1 && currentLevel <= 5)
-        {
-            return killsRequiredPerLevel[currentLevel - 1];
-        }
-        return 50; // Default fallback
-    }
-
-    void AdvanceLevel()
-    {
-        if (currentLevel < 5)
-        {
-            currentLevel++;
-            currentKillsInLevel = 0;
-            Debug.Log($"LEVEL UP! Welcome to Level {currentLevel}. Prepare yourself.");
-            
-            // Here you can trigger scene loading or update difficulty modifiers dynamically
-            // SceneManager.LoadScene("Level" + currentLevel);
-        }
-        else
-        {
-            Debug.Log("CONGRATULATIONS! You beat all 5 levels of ZOMBIFIED!");
-        }
-    }
-
-    void HandlePauseAndExit()
-    {
-        // Toggle Escape to Pause
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            escPressCount++;
-            escPressTimer = 0.4f; // Time window to register a double press
-
-            if (escPressCount >= 2)
-            {
-                ExitFullscreenOrGame();
-            }
-            else
-            {
-                TogglePause();
-            }
-        }
-
-        // Reset the escape press counter if time runs out
-        if (escPressTimer > 0)
-        {
-            escPressTimer -= Time.deltaTime;
-            if (escPressTimer <= 0)
-            {
-                escPressCount = 0;
-            }
-        }
-    }
-
-    void TogglePause()
-    {
-        isPaused = !isPaused;
-
-        if (isPaused)
-        {
-            Time.timeScale = 0f; // Freezes the game simulation
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            Debug.Log("Game Paused");
-        }
-        else
-        {
-            Time.timeScale = 1f; // Unfreezes the game
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-            Debug.Log("Game Resumed");
-        }
-    }
-
-    void ExitFullscreenOrGame()
-    {
-        Debug.Log("Escape pressed twice. Exiting fullscreen/game.");
+        currentLevel++;
+        currentKillsInLevel = 0;
         
-        #if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-        #else
-            // If running as a standalone build, revert fullscreen mode or quit application
-            if (Screen.fullScreen)
-            {
-                Screen.fullScreen = false;
-            }
-            else
-            {
-                Application.Quit();
-            }
-        #endif
+        // Dynamic scaling: Increase difficulty requirements per map tier
+        killsNeededPerLevel += 5;
+
+        Debug.Log($"Level Complete! Progressing to Level: {currentLevel}");
+
+        // Command scene manager to load the corresponding environment
+        if (LevelSceneManager.Instance != null)
+        {
+            LevelSceneManager.Instance.LoadMapForLevel(currentLevel);
+        }
+
+        // Save progress to local disk cache
+        if (SaveSystem.Instance != null)
+        {
+            SaveSystem.Instance.SaveGameProgress(currentLevel);
+        }
+    }
+
+    void TriggerGameOver()
+    {
+        isGameOver = true;
+        Debug.Log("GAME OVER: Player health pool depleted.");
+        
+        // Bring player safely back to the Main Menu layout scene
+        if (LevelSceneManager.Instance != null)
+        {
+            LevelSceneManager.Instance.LoadMainMenu();
+        }
     }
 }
