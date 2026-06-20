@@ -5,9 +5,9 @@ public class LevelSceneManager : MonoBehaviour
 {
     public static LevelSceneManager Instance { get; private set; }
 
-    [Header("Scene Naming Conventions")]
-    [Tooltip("Ensure your scenes in Build Settings match these names exactly (e.g., Level1, Level2, etc.)")]
-    public string sceneNamePrefix = "Level";
+    [Header("Scene Configuration Names")]
+    public string mainMenuSceneName = "MainMenu";
+    public string mapScenePrefix = "Map_Level_";
 
     void Awake()
     {
@@ -23,21 +23,30 @@ public class LevelSceneManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Loads the corresponding 3D map scene for the current level.
+    /// Commands the engine to load a specific map index based on current progression.
     /// </summary>
-    public void LoadMapForLevel(int levelNumber)
+    public void LoadMapForLevel(int levelIndex)
     {
-        string targetSceneName = sceneNamePrefix + levelNumber;
+        // Prevents going beyond your 5 designed game levels
+        if (levelIndex > 5)
+        {
+            Debug.Log("Campaign complete! Returning player back to Main Menu screen.");
+            LoadMainMenu();
+            return;
+        }
+
+        string sceneToLoad = mapScenePrefix + levelIndex;
+        Debug.Log($"Initiating loading process for scene pipeline: {sceneToLoad}");
         
-        // Check if scene exists in build settings before loading
-        if (Application.CanStreamedLevelBeLoaded(targetSceneName))
-        {
-            Debug.Log($"Loading Map: {targetSceneName}");
-            SceneManager.LoadScene(targetSceneName);
-        }
-        else
-        {
-            Debug.LogError($"Scene '{targetSceneName}' cannot be loaded. Ensure it is added to File > Build Settings.");
-        }
+        SceneManager.LoadScene(sceneToLoad);
+    }
+
+    /// <summary>
+    /// Explicitly forces a direct scene jump sequence back to the primary title menu.
+    /// </summary>
+    public void LoadMainMenu()
+    {
+        Debug.Log($"Loading menu layout target: {mainMenuSceneName}");
+        SceneManager.LoadScene(mainMenuSceneName);
     }
 }
