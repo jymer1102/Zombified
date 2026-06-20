@@ -1,165 +1,124 @@
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))]
 public class PlayerMovement : MonoBehaviour
 {
-    [Header("Movement Speeds")]
-    public float walkSpeed = 5f;
-    public float sprintSpeed = 8f;
-    public float crouchSpeed = 2.5f;
-    public float proneSpeed = 1.5f;
-    public float slideSpeed = 12f;
-
-    [Header("Look Settings")]
-    public float mouseSensitivity = 2f;
-    public float fieldOfView = 120f; 
-
-    [Header("Height Settings")]
-    public float standHeight = 2f;
-    public float crouchHeight = 1f;
-    public float proneHeight = 0.5f;
-
-    [Header("Slide Settings")]
-    public float slideDuration = 0.5f;
-    private float slideTimer;
-    private Vector3 slideDirection;
-
-    private enum MovementState { Standing, Sprinting, Crouching, Prone, Sliding }
-    private MovementState currentState = MovementState.Standing;
-
     private CharacterController controller;
-    public Camera playerCamera;
 
-    private float rotationX = 0f;
+    [Header("Movement Constants")]
+    public float walkSpeed = 5.0f;
+    public float sprintSpeed = 8.5f;
+    public float gravity = -9.81f;
+    public float jumpHeight = 1.5f;
+
+    [Header("Stamina Settings")]
+    public float maxStamina = 100f;
+    public float staminaDrainRate = 25f;  // Depletion per second while sprinting
+    public float staminaRegenRate = 15f;  // Recovery per second while resting
+    private float currentStamina;
+
+    [Header("State Tracking")]
+    public float mouseSensitivity = 2.0f;
+    private float xRotation = 0f;
     private Vector3 velocity;
-    private float gravity = -9.81f;
     private bool isGrounded;
+    private bool isSprinting;
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
-        
+        currentStamina = maxStamina;
+
+        // Locks the mouse cursor to the center of the screen for absolute control
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-
-        if (playerCamera != null)
-        {
-            playerCamera.fieldOfView = fieldOfView;
-        }
     }
 
     void Update()
     {
-        isGrounded = controller.isGrounded;
-        if (isGrounded && velocity.y < 0)
-        {
-            velocity.y = -2f; 
-        }
-
-        HandleLook();
-        HandleStateInputs();
+        HandleMouseLook();
         HandleMovement();
-        ApplyGravity();
+        HandleStamina();
     }
 
-    void HandleLook()
+    void HandleMouseLook()
     {
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 
-        rotationX -= mouseY;
-        rotationX = Mathf.Clamp(rotationX, -85f, 85f); 
+        // Rotate the camera up and down (clamped so you can't flip upside down)
+        xRotation -= mouseY;
+        xRotation = Mathf.Clamp(xRotation, -90f, 90f);
 
-        playerCamera.transform.localRotation = Quaternion.Euler(rotationX, 0f, 0f);
+        Camera mainCam = GetComponentInChildren<Camera>();
+        if (mainCam != null)
+        {
+            mainCam.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        }
+
+        // Rotate the whole player body left and right
         transform.Rotate(Vector3.up * mouseX);
-    }
-
-    void HandleStateInputs()
-    {
-        if (currentState == MovementState.Sliding) return;
-
-        bool isMoving = Input.GetAxis("Vertical") > 0; 
-
-        if (Input.GetKeyDown(KeyCode.LeftControl))
-        {
-            if (currentState == MovementState.Sprinting && isMoving)
-            {
-                currentState = MovementState.Sliding;
-                slideTimer = slideDuration;
-                slideDirection = transform.forward * slideSpeed;
-                AdjustHeight(crouchHeight);
-            }
-            else if (currentState == MovementState.Standing || currentState == MovementState.Sprinting)
-            {
-                currentState = MovementState.Crouching;
-                AdjustHeight(crouchHeight);
-            }
-        }
-        else if (Input.GetKey(KeyCode.LeftControl) && currentState == MovementState.Crouching)
-        {
-            currentState = MovementState.Prone;
-            AdjustHeight(proneHeight);
-        }
-        else if (Input.GetKeyUp(KeyCode.LeftControl))
-        {
-            currentState = MovementState.Standing;
-            AdjustHeight(standHeight);
-        }
-
-        if (Input.GetKey(KeyCode.LeftShift) && currentState == MovementState.Standing && isMoving)
-        {
-            currentState = MovementState.Sprinting;
-        }
-        else if (Input.GetKeyUp(KeyCode.LeftShift) && currentState == MovementState.Sprinting)
-        {
-            currentState = MovementState.Standing;
-        }
     }
 
     void HandleMovement()
     {
-        if (currentState == MovementState.Sliding)
+        // Check if the character controller is touching the floor
+        isGrounded = controller.isGrounded;
+        if (isGrounded && velocity.y < 0)
         {
-            controller.Move(slideDirection * Time.deltaTime);
-            slideTimer -= Time.deltaTime;
-            
-            if (slideTimer <= 0)
-            {
-                currentState = Input.GetKey(KeyCode.LeftControl) ? MovementState.Crouching : MovementState.Standing;
-                if (currentState == MovementState.Standing) AdjustHeight(standHeight);
-            }
-            return;
+            velocity.y = -2f; // Slight reset clamp to stick cleanly to slopes
         }
 
-        float moveX = Input.GetAxis("Horizontal");
-        float moveZ = Input.GetAxis("Vertical");
+        float x = Input.GetAxis("Horizontal");
+        float z = Input.GetAxis("Vertical");
 
-        Vector3 move = transform.right * moveX + transform.forward * moveZ;
-
-        float targetSpeed = walkSpeed;
-        switch (currentState)
+        // Determine if player wants to sprint and has stamina to do so
+        bool isMovingForward = z > 0.1f; 
+        if (Input.GetKey(KeyCode.LeftShift) && isMovingForward && currentStamina > 5f)
         {
-            case MovementState.Sprinting: targetSpeed = sprintSpeed; break;
-            case MovementState.Crouching: targetSpeed = crouchSpeed; break;
-            case MovementState.Prone:     targetSpeed = proneSpeed;  break;
+            isSprinting = true;
+        }
+        else
+        {
+            isSprinting = false;
         }
 
-        controller.Move(move * targetSpeed * Time.deltaTime);
-    }
+        // Apply active move speed calculation
+        float currentSpeed = isSprinting ? sprintSpeed : walkSpeed;
+        Vector3 moveDirection = transform.right * x + transform.forward * z;
+        controller.Move(moveDirection * currentSpeed * Time.deltaTime);
 
-    void ApplyGravity()
-    {
+        // Jump Execution
+        if (Input.GetButtonDown("Jump") && isGrounded)
+        {
+            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+        }
+
+        // Continuous application of environmental gravity force over time
         velocity.y += gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
     }
 
-    void AdjustHeight(float targetHeight)
+    void HandleStamina()
     {
-        controller.height = targetHeight;
+        if (isSprinting)
+        {
+            // Drain stamina continuously while sprinting
+            currentStamina -= staminaDrainRate * Time.deltaTime;
+            if (currentStamina < 0f) currentStamina = 0f;
+        }
+        else
+        {
+            // Recover stamina continuously when walking or standing still
+            currentStamina += staminaRegenRate * Time.deltaTime;
+            if (currentStamina > maxStamina) currentStamina = maxStamina;
+        }
     }
 
-    public bool IsStealthing()
+    /// <summary>
+    /// Public helper property so other scripts (like UI or Combat) can read current stamina values.
+    /// </summary>
+    public float GetStaminaPercentage()
     {
-        return (currentState == MovementState.Crouching || currentState == MovementState.Prone);
+        return currentStamina / maxStamina;
     }
 }
