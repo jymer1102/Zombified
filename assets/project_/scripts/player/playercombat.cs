@@ -49,6 +49,9 @@ public class PlayerCombat : MonoBehaviour
             // Apply gun kickback/recoil visual
             if (currentVisuals != null) currentVisuals.TriggerRecoil();
 
+            // Trigger a light camera shake for the pistol
+            if (CameraShake.Instance != null) CameraShake.Instance.TriggerShake(0.08f, 0.03f);
+
             if (Physics.Raycast(ray, out hit, attackRange))
             {
                 ProcessHit(hit, pistolDamage);
@@ -58,6 +61,9 @@ public class PlayerCombat : MonoBehaviour
         {
             // Apply gun kickback/recoil visual
             if (currentVisuals != null) currentVisuals.TriggerRecoil();
+
+            // Trigger a heavier, high-caliber camera shake for the AR
+            if (CameraShake.Instance != null) CameraShake.Instance.TriggerShake(0.12f, 0.07f);
 
             if (Physics.Raycast(ray, out hit, attackRange))
             {
