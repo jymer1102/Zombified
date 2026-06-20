@@ -2,32 +2,35 @@ using UnityEngine;
 
 public class WeaponVisuals : MonoBehaviour
 {
-    [Header("Recoil Settings")]
-    public float recoilAmount = 0.1f;
-    public float recoverySpeed = 5f;
+    [Header("Recoil Physics")]
+    [Tooltip("How far back the gun kicks along the Z-axis when fired.")]
+    public float recoilKickAmount = 0.15f;
+    
+    [Tooltip("The speed at which the gun snaps back to its original position.")]
+    public float recoilRecoverySpeed = 12f;
 
-    private Vector3 originalPosition;
-    private Vector3 targetPosition;
+    private Vector3 originalLocalPosition;
+    private Vector3 currentRecoilPosition;
 
     void Start()
     {
-        // Cache the default local placement of the weapon model on the screen
-        originalPosition = transform.localPosition;
-        targetPosition = originalPosition;
+        // Cache the exact resting position of the gun on the camera layout
+        originalLocalPosition = transform.localPosition;
+        currentRecoilPosition = originalLocalPosition;
     }
 
     void Update()
     {
-        // Smoothly snap back to the resting position over time after kicking back
-        transform.localPosition = Vector3.Lerp(transform.localPosition, targetPosition, Time.deltaTime * recoverySpeed);
-        targetPosition = Vector3.Lerp(targetPosition, originalPosition, Time.deltaTime * recoverySpeed);
+        // Smoothly interpolate the weapon back to its resting point
+        transform.localPosition = Vector3.Lerp(transform.localPosition, originalLocalPosition, Time.deltaTime * recoilRecoverySpeed);
     }
 
     /// <summary>
-    /// Jolt the weapon model backward along the Z-axis to simulate physical kickback recoil.
+    /// Instantly jolts the gun model backward to simulate crisp mechanical kickback.
     /// </summary>
     public void TriggerRecoil()
     {
-        targetPosition -= Vector3.forward * recoilAmount;
+        // Push the weapon model straight back along the local Z-axis
+        transform.localPosition -= Vector3.forward * recoilKickAmount;
     }
 }
