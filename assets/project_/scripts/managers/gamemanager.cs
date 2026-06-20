@@ -5,6 +5,7 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     [Header("Player Stats & State")]
+    public int maxHealth = 100;
     public int playerHealth = 100;
     public int score = 0;
     public bool isGameOver = false;
@@ -27,8 +28,18 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    void Start()
+    {
+        // Initialize UI display values immediately on match start
+        if (HorrorUIManager.Instance != null)
+        {
+            HorrorUIManager.Instance.UpdateHealthText(playerHealth);
+        }
+    }
+
     /// <summary>
-    /// Processes player damage tracking and handles death state triggers.
+    /// Processes player damage tracking, handles dramatic screen shake/blood splatters, 
+    /// and handles death state triggers.
     /// </summary>
     public void TakeDamage(int amount)
     {
@@ -37,6 +48,22 @@ public class GameManager : MonoBehaviour
         playerHealth -= amount;
         Debug.Log($"Player hit! Remaining Health: {playerHealth}");
 
+        // 1. Violent camera jolt when the player gets bit/scratched
+        if (CameraShake.Instance != null)
+        {
+            CameraShake.Instance.TriggerShake(0.2f, 0.15f);
+        }
+
+        // 2. Update the stylized Crimson UI and flash blood vignettes on the player's screen
+        if (HorrorUIManager.Instance != null)
+        {
+            HorrorUIManager.Instance.UpdateHealthText(playerHealth);
+            
+            float healthPercent = (float)playerHealth / maxHealth;
+            HorrorUIManager.Instance.TriggerDamageFlash(healthPercent);
+        }
+
+        // 3. Evaluate death thresholds
         if (playerHealth <= 0)
         {
             TriggerGameOver();
