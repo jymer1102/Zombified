@@ -2,122 +2,153 @@ using UnityEngine;
 
 public class WeaponManager : MonoBehaviour
 {
-    // Weapon Types
     public enum WeaponType { Knife, Pistol, AR }
+
+    [Header("Current Active Weapon")]
     public WeaponType currentWeapon = WeaponType.Knife;
 
-    [Header("Ammo Settings")]
-    // Standard magazine/clip capacities
-    public const int PISTOL_CLIP_SIZE = 15;
-    public const int AR_CLIP_SIZE = 30;
-    public const int MAX_GRENADES = 5;
+    [Header("Pistol Ammunition Pools")]
+    public int currentPistolAmmo = 12;
+    public int maxPistolClip = 12;
+    public int reservePistolAmmo = 60;
 
-    // Current ammo in the clip
-    public int currentPistolAmmo = PISTOL_CLIP_SIZE;
-    public int currentARAmmo = AR_CLIP_SIZE;
-    public int grenadeCount = 0;
+    [Header("AR Ammunition Pools")]
+    public int currentARAmmo = 30;
+    public int maxARClip = 30;
+    public int reserveARAmmo = 180;
 
-    [Header("Reserve Ammo (Picked up from map)")]
-    public int reservePistolAmmo = 45;
-    public int reserveARAmmo = 90;
+    [Header("Reload Timing Settings")]
+    public float pistolReloadTime = 1.5f;
+    public float arReloadTime = 2.5f;
+    private bool isReloading = false;
+
+    [Header("Weapon Models (Visual GOBs)")]
+    public GameObject knifeModel;
+    public GameObject pistolModel;
+    public GameObject arModel;
+
+    void Start()
+    {
+        // Initialize the game with the starting weapon visual set up correctly
+        UpdateWeaponVisuals();
+    }
 
     void Update()
     {
-        HandleWeaponSwitching();
-        HandleShooting();
-        HandleGrenade();
+        if (isReloading) return;
+
+        HandleWeaponInput();
     }
 
-    void HandleWeaponSwitching()
+    /// <summary>
+    /// Processes keypress registers for swapping and reloading weapons.
+    /// </summary>
+    void HandleWeaponInput()
     {
-        // Toggle 'Z' to switch between Pistol and AR
-        if (Input.GetKeyDown(KeyCode.Z))
+        // Alpha keybinds for selection
+        if (Input.GetKeyDown(KeyCode.Alpha1)) EquipWeapon(WeaponType.Knife);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) EquipWeapon(WeaponType.Pistol);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) EquipWeapon(WeaponType.AR);
+
+        // Scroll wheel selection matrix
+        float scroll = Input.GetAxis("Mouse ScrollWheel");
+        if (scroll > 0f)
         {
-            if (currentWeapon == WeaponType.Pistol)
-            {
-                currentWeapon = WeaponType.AR;
-                Debug.Log("Switched to Assault Rifle");
-            }
-            else
-            {
-                currentWeapon = WeaponType.Pistol;
-                Debug.Log("Switched to Pistol");
-            }
+            CycleWeapon(1);
+        }
+        else if (scroll < 0f)
+        {
+            CycleWeapon(-1);
         }
 
-        // Toggle 'R' to pull out the Knife
+        // Reload registration
         if (Input.GetKeyDown(KeyCode.R))
         {
-            currentWeapon = WeaponType.Knife;
-            Debug.Log("Switched to Knife");
+            AttemptReload();
         }
     }
 
-    void HandleShooting()
+    /// <summary>
+    /// Swaps the current weapon state and forces a model hierarchy refresh.
+    /// </summary>
+    public void EquipWeapon(WeaponType newWeapon)
     {
-        // Left Click to attack/shoot
-        if (Input.GetMouseButtonDown(0))
+        if (currentWeapon == newWeapon) return;
+
+        currentWeapon = newWeapon;
+        Debug.Log($"Switched weapon array index to: {currentWeapon}");
+        UpdateWeaponVisuals();
+    }
+
+    /// <summary>
+    /// Mathematical loop to scroll cleanly forward or backward through weapon enums.
+    /// </summary>
+    void CycleWeapon(int direction)
+    {
+        int totalWeapons = System.Enum.GetValues(typeof(WeaponType)).Length;
+        int nextIndex = (int)currentWeapon + direction;
+
+        if (nextIndex >= totalWeapons) nextIndex = 0;
+        if (nextIndex < 0) nextIndex = totalWeapons - 1;
+
+        EquipWeapon((WeaponType)nextIndex);
+    }
+
+    /// <summary>
+    /// Evaluates ammo reserves and triggers a background reload calculation sequence.
+    /// </summary>
+    void AttemptReload()
+    {
+        if (currentWeapon == WeaponType.Knife) return;
+
+        if (currentWeapon == WeaponType.Pistol && currentPistolAmmo < maxPistolClip && reservePistolAmmo > 0)
         {
-            switch (currentWeapon)
-            {
-                case WeaponType.Knife:
-                    Debug.Log("Slashed with Knife! (Infinite ammo)");
-                    break;
-
-                case WeaponType.Pistol:
-                    if (currentPistolAmmo > 0)
-                    {
-                        currentPistolAmmo--;
-                        Debug.Log($"Fired Pistol! Ammo left: {currentPistolAmmo}/{PISTOL_CLIP_SIZE}");
-                    }
-                    else
-                    {
-                        Debug.Log("Pistol Out of Ammo!");
-                    }
-                    break;
-
-                case WeaponType.AR:
-                    if (currentARAmmo > 0)
-                    {
-                        currentARAmmo--;
-                        Debug.Log($"Fired AR! Ammo left: {currentARAmmo}/{AR_CLIP_SIZE}");
-                    }
-                    else
-                    {
-                        Debug.Log("AR Out of Ammo!");
-                    }
-                    break;
-            }
+            StartCoroutine(ReloadRoutine(pistolReloadTime, () => {
+                int ammoNeeded = maxPistolClip - currentPistolAmmo;
+                int ammoToFill = Mathf.Min(ammoNeeded, reservePistolAmmo);
+                currentPistolAmmo += ammoToFill;
+                reservePistolAmmo -= ammoToFill;
+            }));
         }
-    }
-
-    void HandleGrenade()
-    {
-        // Toggle 'Q' to throw grenade
-        if (Input.GetKeyDown(KeyCode.Q))
+        else if (currentWeapon == WeaponType.AR && currentARAmmo < maxARClip && reserveARAmmo > 0)
         {
-            if (grenadeCount > 0)
-            {
-                grenadeCount--;
-                Debug.Log($"Grenade Thrown! Grenades left: {grenadeCount}/{MAX_GRENADES}");
-            }
-            else
-            {
-                Debug.Log("No grenades left!");
-            }
+            StartCoroutine(ReloadRoutine(arReloadTime, () => {
+                int ammoNeeded = maxARClip - currentARAmmo;
+                int ammoToFill = Mathf.Min(ammoNeeded, reserveARAmmo);
+                currentARAmmo += ammoToFill;
+                reserveARAmmo -= ammoToFill;
+            }));
         }
     }
 
-    public void PickupAmmo(WeaponType type, int amount)
+    /// <summary>
+    /// Thread simulation to block firing operations while a reload animation timeline passes.
+    /// </summary>
+    System.Collections.IEnumerator ReloadRoutine(float delay, System.Action reloadAction)
     {
-        if (type == WeaponType.Pistol) reservePistolAmmo += amount;
-        if (type == WeaponType.AR) reserveARAmmo += amount;
-        Debug.Log($"Picked up ammo. Reserve Pistol: {reservePistolAmmo}, Reserve AR: {reserveARAmmo}");
+        isReloading = true;
+        Debug.Log($"Reloading {currentWeapon}... Standby.");
+        
+        // Trigger global audio reload cue if available
+        if (AudioManager.Instance != null && AudioManager.Instance.reloadClip != null)
+        {
+            AudioManager.Instance.Play2DSFX(AudioManager.Instance.reloadClip);
+        }
+
+        yield return new WaitForSeconds(delay);
+
+        reloadAction.Invoke();
+        isReloading = false;
+        Debug.Log($"{currentWeapon} reload sequence complete.");
     }
 
-    public void PickupGrenades(int amount)
+    /// <summary>
+    /// Toggles GameObject visibilities based on which weapon state is active.
+    /// </summary>
+    void UpdateWeaponVisuals()
     {
-        grenadeCount = Mathf.Clamp(grenadeCount + amount, 0, MAX_GRENADES);
-        Debug.Log($"Picked up grenades. Total: {grenadeCount}");
+        if (knifeModel != null) knifeModel.SetActive(currentWeapon == WeaponType.Knife);
+        if (pistolModel != null) pistolModel.SetActive(currentWeapon == WeaponType.Pistol);
+        if (arModel != null) arModel.SetActive(currentWeapon == WeaponType.AR);
     }
 }
