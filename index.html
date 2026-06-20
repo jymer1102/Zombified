@@ -3,46 +3,151 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Horror Zombie Shooter</title>
+    <title>Horror Survival Sandbox</title>
     <style>
-      body {
+      /* Reset default browser spacing */
+      html, body {
         margin: 0;
-        background-color: #111;
-        color: #fff;
-        font-family: sans-serif;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #050505;
+        font-family: 'Courier New', Courier, monospace;
+        overflow: hidden;
+        color: #8B0000;
+      }
+
+      /* Core canvas container layout */
+      #game-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
         display: flex;
         flex-direction: column;
-        align-items: center;
         justify-content: center;
-        min-height: 100vh;
+        align-items: center;
       }
-      #game-container {
-        width: 960px;
+
+      /* Standard state windowed cursor style */
+      canvas {
+        width: 800px;
         height: 600px;
-        border: 2px solid #8B0000;
-        background: #000;
-        box-shadow: 0 0 20px rgba(139, 0, 0, 0.6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        background: #111;
+        box-shadow: 0 0 30px rgba(139, 0, 0, 0.3);
+        cursor: default;
+        transition: width 0.3s, height 0.3s;
       }
-      .error-msg {
-        color: #ff3333;
+
+      /* CRITICAL: Active Gameplay Crosshair Styling */
+      /* When the browser enters Pointer Lock (fullscreen gaming mode), swap the mouse cursor */
+      canvas:active, canvas:focus, :fullscreen canvas {
+        /* Custom horror crosshair look using standard browser cell-targeting graphics */
+        cursor: crosshair !important; 
+      }
+
+      /* Control HUD overlays */
+      #ui-panel {
+        margin-top: 15px;
         text-align: center;
+      }
+
+      button {
+        background: #4A0000;
+        color: #ffcccc;
+        border: 2px solid #8B0000;
+        padding: 10px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        box-shadow: 0 0 10px rgba(139, 0, 0, 0.5);
+      }
+
+      button:hover {
+        background: #8B0000;
+        color: #fff;
+        box-shadow: 0 0 15px #ff0000;
+      }
+
+      .placeholder-notice {
+        position: absolute;
+        text-align: center;
+        max-width: 500px;
+        pointer-events: none;
         padding: 20px;
       }
     </style>
   </head>
   <body>
 
-    <h1>Horror Zombie Shooter</h1>
-    
     <div id="game-container">
-      <div class="error-msg">
-        <h3>Unity WebGL Engine Framework Missing</h3>
+      <canvas id="unity-canvas"></canvas>
+
+      <div class="placeholder-notice" id="notice">
+        <h2>⚠️ Unity WebGL Engine Framework Missing</h2>
         <p>This HTML container is live! To play the actual game, compile your C# code to WebGL inside the Unity Editor and upload the generated <b>Build</b> folder assets to this repository.</p>
+      </div>
+
+      <div id="ui-panel">
+        <button id="fullscreen-btn">Enter Fullscreen Combat Mode</button>
       </div>
     </div>
 
+    <script>
+      const canvas = document.getElementById("unity-canvas");
+      const fullscreenBtn = document.getElementById("fullscreen-btn");
+      const container = document.getElementById("game-container");
+      const notice = document.getElementById("notice");
+
+      // Fullscreen Activation Engine logic
+      fullscreenBtn.addEventListener("click", () => {
+        if (!document.fullscreenElement) {
+          // Request full screen space allocation from the web browser
+          if (container.requestFullscreen) {
+            container.requestFullscreen();
+          } else if (container.mozRequestFullScreen) { // Firefox
+            container.mozRequestFullScreen();
+          } else if (container.webkitRequestFullscreen) { // Chrome, Safari, Opera
+            container.webkitRequestFullscreen();
+          }
+        } else {
+          document.exitFullscreen();
+        }
+      });
+
+      // Pointer Lock System (Locks mouse inside the screen for accurate mouse-look camera control)
+      canvas.addEventListener("click", () => {
+        // Only lock pointer if we are in fullscreen mode
+        if (document.fullscreenElement) {
+          canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+          canvas.requestPointerLock();
+        }
+      });
+
+      // Track screen modifications to automatically resize assets and catch Esc-key exits
+      document.addEventListener("fullscreenchange", () => {
+        if (document.fullscreenElement) {
+          // Enter Fullscreen Visual States
+          canvas.style.width = "100%";
+          canvas.style.height = "100%";
+          fullscreenBtn.innerText = "Exit Fullscreen Mode";
+          console.log("System Status: Fullscreen combat active. Swapping cursor matrix to target crosshairs.");
+        } else {
+          // User hit 'Esc' or exited fullscreen mode manually
+          canvas.style.width = "800px";
+          canvas.style.height = "600px";
+          fullscreenBtn.innerText = "Enter Fullscreen Combat Mode";
+          
+          // Trigger internal game pause hook logs
+          console.log("Player exited fullscreen via ESC. Triggering Game Pause State.");
+          
+          /* NOTE FOR UNITY DEPLOYMENT: 
+          Once your actual Unity build is integrated, uncomment the line below to send the pause command directly to your game scripts:
+          unityInstance.SendMessage('GameManager', 'TogglePauseMenu', 1);
+          */
+        }
+      });
+    </script>
   </body>
 </html>
