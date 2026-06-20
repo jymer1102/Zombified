@@ -2,79 +2,49 @@ using UnityEngine;
 
 public class ZombieSpawner : MonoBehaviour
 {
-    [Header("Spawn Settings")]
-    public GameObject easyZombiePrefab;
-    public GameObject knifeZombiePrefab;
-    public GameObject strongZombiePrefab;
-    public GameObject bossZombiePrefab;
-
+    [Header("Spawning Coordinates")]
     public Transform[] spawnPoints;
-    public float spawnInterval = 3f;
-
-    private float spawnTimer;
-    private int currentLevelTracking = 1;
-
-    void Start()
-    {
-        spawnTimer = spawnInterval;
-        if (GameManager.Instance != null)
-        {
-            currentLevelTracking = GameManager.Instance.currentLevel;
-        }
-    }
+    
+    [Header("Timing Configurations")]
+    public float spawnInterval = 3.0f;
+    private float spawnTimer = 0.0f;
 
     void Update()
     {
         if (GameManager.Instance == null) return;
 
-        // Keep track of what level the game manager is on
-        currentLevelTracking = GameManager.Instance.currentLevel;
-
-        spawnTimer -= Time.deltaTime;
-        if (spawnTimer <= 0f)
+        // Stop spawning if the level requirements have already been met
+        if (GameManager.Instance.currentKillsInLevel >= GameManager.Instance.killsNeededPerLevel)
         {
-            SpawnZombieBasedOnLevel();
-            spawnTimer = spawnInterval;
+            return;
+        }
+
+        spawnTimer += Time.deltaTime;
+
+        if (spawnTimer >= spawnInterval)
+        {
+            SpawnZombieFromPool();
+            spawnTimer = 0.0f;
         }
     }
 
-    void SpawnZombieBasedOnLevel()
+    void SpawnZombieFromPool()
     {
-        if (spawnPoints.Length == 0) return;
+        if (spawnPoints == null || spawnPoints.Length == 0) return;
 
-        // Pick a random spawn point from your array
-        Transform randomPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
-        GameObject zombieToSpawn = null;
+        // Choose a random spawn point location
+        int randomIndex = Random.Range(0, spawnPoints.Length);
+        Transform targetPoint = spawnPoints[randomIndex];
 
-        // Your progressive level difficulty rules
-        switch (currentLevelTracking)
+        if (ObjectPooler.Instance != null)
         {
-            case 1:
-                // Level 1: Easy Zombie
-                zombieToSpawn = easyZombiePrefab;
-                break;
-            case 2:
-                // Level 2: Knife Zombie
-                zombieToSpawn = knifeZombiePrefab;
-                break;
-            case 3:
-                // Level 3: Knife Zombie and Bigger/Stronger Zombie
-                zombieToSpawn = Random.Range(0, 2) == 0 ? knifeZombiePrefab : strongZombiePrefab;
-                break;
-            case 4:
-                // Level 4: Knife Zombie and Bigger/Stronger Zombie
-                zombieToSpawn = Random.Range(0, 2) == 0 ? knifeZombiePrefab : strongZombiePrefab;
-                break;
-            case 5:
-                // Level 5: Regular Knife Zombies and Biggest Strongest Boss Zombie
-                // Simple logic: 10% chance to spawn the boss, otherwise standard knife zombie
-                zombieToSpawn = Random.Range(0, 10) == 0 ? bossZombiePrefab : knifeZombiePrefab;
-                break;
+            // Grab a pre-warmed zombie from our performance pool instead of using Instantiate
+            ObjectPooler.Instance.GetPooledZombie(targetPoint.position, targetPoint.rotation);
+            Debug.Log($"Zombie deployed from pool at location: {targetPoint.name}");
         }
-
-        if (zombieToSpawn != null)
+        else
         {
-            Instantiate(zombieToSpawn, randomPoint.position, randomPoint.rotation);
+            Debug.LogWarning("ObjectPooler instance is missing from the scene pipeline!");
         }
     }
 }
