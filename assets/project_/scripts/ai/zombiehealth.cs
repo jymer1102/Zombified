@@ -8,6 +8,12 @@ public class ZombieHealth : MonoBehaviour, IDamageable
     private float currentHealth;
 
     private bool isDead = false;
+    private ZombieAI zombieAI;
+
+    void Awake()
+    {
+        zombieAI = GetComponent<ZombieAI>();
+    }
 
     void OnEnable()
     {
@@ -25,6 +31,12 @@ public class ZombieHealth : MonoBehaviour, IDamageable
 
         currentHealth -= damageAmount;
         Debug.Log($"{gameObject.name} took {damageAmount} damage. Health remaining: {currentHealth}");
+
+        // Interrupt their attack/chase path to play a stagger effect
+        if (zombieAI != null && currentHealth > 0f)
+        {
+            zombieAI.TriggerFlinch();
+        }
 
         if (currentHealth <= 0f)
         {
