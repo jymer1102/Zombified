@@ -100,12 +100,30 @@ public class PlayerCombat : MonoBehaviour
         return spreadVector.normalized;
     }
 
+    /// <summary>
+    /// Processes structural combat impacts and routes visual impact particle cues.
+    /// </summary>
     void ProcessHit(RaycastHit hit, float damage)
     {
         IDamageable damageableTarget = hit.transform.GetComponent<IDamageable>();
+        
         if (damageableTarget != null)
         {
             damageableTarget.TakeDamage(damage);
+            
+            // Call the surface impact manager to drop high-end blood spray effects at the exact point of impact
+            if (SurfaceImpactManager.Instance != null)
+            {
+                SurfaceImpactManager.Instance.SpawnImpactEffect(hit, true);
+            }
+        }
+        else
+        {
+            // Hit a wall, floor, or static mesh scenery asset instead of an entity
+            if (SurfaceImpactManager.Instance != null)
+            {
+                SurfaceImpactManager.Instance.SpawnImpactEffect(hit, false);
+            }
         }
     }
 }
