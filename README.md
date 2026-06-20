@@ -1,6 +1,7 @@
 # Zombified
 Zombie Shooter to Play at School
-	•	Levels of difficulty
+	
+	•Levels of difficulty
 	⁃	1 through 5
 	1.	Easy Zombie - Player gets knife
 	2.	Knife Zombie - Player gets pistol
