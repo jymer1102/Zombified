@@ -1,4 +1,5 @@
 using UnityEngine;
+using Project.Interfaces;
 
 public class PlayerCombat : MonoBehaviour
 {
@@ -34,7 +35,6 @@ public class PlayerCombat : MonoBehaviour
         Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
         RaycastHit hit;
 
-        // Try to find the visual recoil script on whatever weapon model is currently active
         WeaponVisuals currentVisuals = GetComponentInChildren<WeaponVisuals>();
 
         if (weaponManager.currentWeapon == WeaponManager.WeaponType.Knife)
@@ -46,10 +46,7 @@ public class PlayerCombat : MonoBehaviour
         }
         else if (weaponManager.currentWeapon == WeaponManager.WeaponType.Pistol && weaponManager.currentPistolAmmo > 0)
         {
-            // Apply gun kickback/recoil visual
             if (currentVisuals != null) currentVisuals.TriggerRecoil();
-
-            // Trigger a light camera shake for the pistol
             if (CameraShake.Instance != null) CameraShake.Instance.TriggerShake(0.08f, 0.03f);
 
             if (Physics.Raycast(ray, out hit, attackRange))
@@ -59,10 +56,7 @@ public class PlayerCombat : MonoBehaviour
         }
         else if (weaponManager.currentWeapon == WeaponManager.WeaponType.AR && weaponManager.currentARAmmo > 0)
         {
-            // Apply gun kickback/recoil visual
             if (currentVisuals != null) currentVisuals.TriggerRecoil();
-
-            // Trigger a heavier, high-caliber camera shake for the AR
             if (CameraShake.Instance != null) CameraShake.Instance.TriggerShake(0.12f, 0.07f);
 
             if (Physics.Raycast(ray, out hit, attackRange))
@@ -74,11 +68,11 @@ public class PlayerCombat : MonoBehaviour
 
     void ProcessHit(RaycastHit hit, float damage)
     {
-        ZombieHealth zombie = hit.transform.GetComponent<ZombieHealth>();
-        if (zombie != null)
+        // Look for the interface instead of a specific script component
+        IDamageable damageableTarget = hit.transform.GetComponent<IDamageable>();
+        if (damageableTarget != null)
         {
-            zombie.TakeDamage(damage);
-            Debug.Log($"Hit zombie for {damage} damage!");
+            damageableTarget.TakeDamage(damage);
         }
     }
 }
