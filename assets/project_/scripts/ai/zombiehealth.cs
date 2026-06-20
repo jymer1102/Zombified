@@ -9,9 +9,11 @@ public class ZombieHealth : MonoBehaviour, IDamageable
 
     private bool isDead = false;
 
-    void Start()
+    void OnEnable()
     {
+        // Reset state values whenever the object gets pulled from the pool
         currentHealth = maxHealth;
+        isDead = false;
     }
 
     /// <summary>
@@ -42,8 +44,12 @@ public class ZombieHealth : MonoBehaviour, IDamageable
         }
 
         // Trigger local 3D audio death sound if available
-        // if (AudioManager.Instance != null) AudioManager.Instance.Play3DSFX(AudioManager.Instance.zombieDeathClip, transform.position);
+        if (AudioManager.Instance != null && AudioManager.Instance.zombieDeathClip != null) 
+        {
+            AudioManager.Instance.Play3DSFX(AudioManager.Instance.zombieDeathClip, transform.position);
+        }
 
-        Destroy(gameObject);
+        // Return to pool instead of calling Destroy(gameObject)
+        gameObject.SetActive(false);
     }
 }
