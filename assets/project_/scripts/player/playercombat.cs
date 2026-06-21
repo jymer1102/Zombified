@@ -193,7 +193,8 @@ public class PlayerCombat : MonoBehaviour
     }
 
     /// <summary>
-    /// Processes structural combat impacts and routes visual impact particle cues.
+    /// Processes structural combat impacts and routes visual impact particle cues,
+    /// plus hitmarker feedback and floating damage numbers.
     /// </summary>
     void ProcessHit(RaycastHit hit, float damage)
     {
@@ -201,7 +202,18 @@ public class PlayerCombat : MonoBehaviour
 
         if (damageableTarget != null)
         {
+            // Check BEFORE applying damage so we know if this hit is the killing blow
+            ZombieHealth zombieHealth = hit.transform.GetComponent<ZombieHealth>();
+            bool willKill = zombieHealth != null && zombieHealth.WouldDie(damage);
+
             damageableTarget.TakeDamage(damage);
+
+            // Hitmarker + floating number feedback
+            if (HitFeedbackManager.Instance != null)
+            {
+                HitFeedbackManager.Instance.ShowHitmarker(willKill);
+                HitFeedbackManager.Instance.SpawnDamageNumber(hit.point, damage);
+            }
 
             // Call the surface impact manager to drop high-end blood spray effects at the exact point of impact
             if (SurfaceImpactManager.Instance != null)
