@@ -15,6 +15,9 @@ public class GameManager : MonoBehaviour
     public int currentKillsInLevel = 0;
     public int killsNeededPerLevel = 10;
 
+    // Matches the README exactly: Level 1=10, 2=15, 3=25, 4=30, 5=50
+    private readonly int[] killQuotaByLevel = { 10, 15, 25, 30, 50 };
+
     void Awake()
     {
         if (Instance == null)
@@ -30,11 +33,19 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
+        killsNeededPerLevel = GetQuotaForLevel(currentLevel);
+
         // Initialize UI display values immediately on match start
         if (HorrorUIManager.Instance != null)
         {
-            HorrorUIManager.Instance.UpdateHealthText(playerHealth);
+            HorrorUIManager.Instance.UpdateHealthText(playerHealth, maxHealth);
         }
+    }
+
+    int GetQuotaForLevel(int level)
+    {
+        int index = Mathf.Clamp(level - 1, 0, killQuotaByLevel.Length - 1);
+        return killQuotaByLevel[index];
     }
 
     /// <summary>
@@ -57,7 +68,7 @@ public class GameManager : MonoBehaviour
         // 2. Update the stylized Crimson UI and flash blood vignettes on the player's screen
         if (HorrorUIManager.Instance != null)
         {
-            HorrorUIManager.Instance.UpdateHealthText(playerHealth);
+            HorrorUIManager.Instance.UpdateHealthText(playerHealth, maxHealth);
             
             float healthPercent = (float)playerHealth / maxHealth;
             HorrorUIManager.Instance.TriggerDamageFlash(healthPercent);
@@ -71,11 +82,12 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Adds points to the player's runtime score metric.
+    /// Adds (or subtracts, if negative) points to the player's runtime score metric.
     /// </summary>
     public void AddScore(int points)
     {
         score += points;
+        score = Mathf.Max(score, 0); // never let score go negative
         Debug.Log($"Score updated: {score}");
     }
 
@@ -98,11 +110,24 @@ public class GameManager : MonoBehaviour
     {
         currentLevel++;
         currentKillsInLevel = 0;
-        
-        // Dynamic scaling: Increase difficulty requirements per map tier
-        killsNeededPerLevel += 5;
+        killsNeededPerLevel = GetQuotaForLevel(currentLevel);
 
-        Debug.Log($"Level Complete! Progressing to Level: {currentLevel}");
+        // Restore the player to full health at the start of every new level
+        playerHealth = maxHealth;
+
+        // Top off ammo and grenades for the fresh level too
+        WeaponManager playerWeapons = FindAnyObjectByType<WeaponManager>();
+        if (playerWeapons != null)
+        {
+            playerWeapons.ResetForNewLevel();
+        }
+
+        if (HorrorUIManager.Instance != null)
+        {
+            HorrorUIManager.Instance.UpdateHealthText(playerHealth, maxHealth);
+        }
+
+        Debug.Log($"Level Complete! Progressing to Level: {currentLevel}. Health restored to full.");
 
         // Command scene manager to load the corresponding environment
         if (LevelSceneManager.Instance != null)
@@ -127,5 +152,19 @@ public class GameManager : MonoBehaviour
         {
             LevelSceneManager.Instance.LoadMainMenu();
         }
+    }
+
+    /// <summary>
+    /// Resets all run state back to a fresh start. Call this from the main menu's
+    /// "New Game" / "Play" button before loading Level 1.
+    /// </summary>
+    public void ResetForNewGame()
+    {
+        currentLevel = 1;
+        currentKillsInLevel = 0;
+        killsNeededPerLevel = GetQuotaForLevel(currentLevel);
+        playerHealth = maxHealth;
+        score = 0;
+        isGameOver = false;
     }
 }
