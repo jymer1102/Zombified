@@ -4,10 +4,9 @@ public class CameraShake : MonoBehaviour
 {
     public static CameraShake Instance { get; private set; }
 
-    private Vector3 originalPos;
     private float shakeTimer = 0f;
     private float shakeAmount = 0f;
-    private float decreaseFactor = 1.0f;
+    private Vector3 currentOffset = Vector3.zero;
 
     void Awake()
     {
@@ -17,25 +16,20 @@ public class CameraShake : MonoBehaviour
         }
     }
 
-    void OnEnable()
-    {
-        originalPos = transform.localPosition;
-    }
-
     void Update()
     {
         if (shakeTimer > 0)
         {
-            // Generate a random position offset inside a sphere to simulate the shaking effect
-            transform.localPosition = originalPos + Random.insideUnitSphere * shakeAmount;
-            
-            // Gradually reduce the shake time remaining
-            shakeTimer -= Time.deltaTime * decreaseFactor;
+            // Generate a random offset inside a sphere to simulate the shaking effect.
+            // This is now just a value other scripts (CameraEffects) read and add on top
+            // of their own position - it no longer touches transform.localPosition directly.
+            currentOffset = Random.insideUnitSphere * shakeAmount;
+            shakeTimer -= Time.deltaTime;
         }
         else
         {
             shakeTimer = 0f;
-            transform.localPosition = originalPos;
+            currentOffset = Vector3.zero;
         }
     }
 
@@ -46,7 +40,19 @@ public class CameraShake : MonoBehaviour
     /// <param name="amount">How violent the shake is.</param>
     public void TriggerShake(float duration, float amount)
     {
-        shakeTimer = duration;
-        shakeAmount = amount;
+        // If a new shake is stronger or longer than what's currently running, use the new one.
+        // Otherwise keep the existing shake going instead of cutting it short.
+        if (duration > shakeTimer) shakeTimer = duration;
+        if (amount > shakeAmount) shakeAmount = amount;
+    }
+
+    /// <summary>
+    /// Returns the current shake offset so other position-driving scripts (like CameraEffects)
+    /// can add it on top of their own calculated position, instead of both scripts
+    /// fighting over transform.localPosition directly.
+    /// </summary>
+    public Vector3 GetCurrentOffset()
+    {
+        return currentOffset;
     }
 }
