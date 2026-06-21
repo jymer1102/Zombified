@@ -15,6 +15,7 @@ public class CameraEffects : MonoBehaviour
     private PlayerMovement movement;
     private CharacterController controller;
     private float bobTimer = 0f;
+    private Vector3 basePosition; // The "clean" position before shake is added on top
 
     void Start()
     {
@@ -45,7 +46,13 @@ public class CameraEffects : MonoBehaviour
             bobTimer = 0f;
         }
 
-        // Smoothly slide the camera into place
-        cameraTransform.localPosition = Vector3.Lerp(cameraTransform.localPosition, targetPosition, adsSpeed * Time.deltaTime);
+        // Smoothly slide toward the target. This is the "clean" base position,
+        // calculated BEFORE any shake offset gets added on top of it.
+        basePosition = Vector3.Lerp(basePosition, targetPosition, adsSpeed * Time.deltaTime);
+
+        // Let CameraShake read this base position and add its offset on top,
+        // instead of both scripts fighting to directly set localPosition.
+        Vector3 shakeOffset = CameraShake.Instance != null ? CameraShake.Instance.GetCurrentOffset() : Vector3.zero;
+        cameraTransform.localPosition = basePosition + shakeOffset;
     }
 }
