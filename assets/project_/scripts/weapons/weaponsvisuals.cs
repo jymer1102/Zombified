@@ -10,13 +10,11 @@ public class WeaponVisuals : MonoBehaviour
     public float recoilRecoverySpeed = 12f;
 
     private Vector3 originalLocalPosition;
-    private Vector3 currentRecoilPosition;
 
     void Start()
     {
         // Cache the exact resting position of the gun on the camera layout
         originalLocalPosition = transform.localPosition;
-        currentRecoilPosition = originalLocalPosition;
     }
 
     void Update()
