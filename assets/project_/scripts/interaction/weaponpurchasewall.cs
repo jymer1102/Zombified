@@ -16,36 +16,45 @@ public class WeaponPurchaseWall : MonoBehaviour
         WeaponManager weaponManager = playerObject.GetComponent<WeaponManager>();
         if (weaponManager == null) return;
 
-        // Verify if player already owns this weapon type
-        bool alreadyOwnsWeapon = CheckWeaponOwnership(weaponManager, weaponToBuy);
+        if (GameManager.Instance == null) return;
+
+        // Verify if player already owns this weapon type using REAL ownership tracking
+        bool alreadyOwnsWeapon = weaponManager.IsWeaponOwned(weaponToBuy);
 
         if (!alreadyOwnsWeapon)
         {
-            // Logic check for purchasing a brand new firearm asset
+            // Check if the player can actually afford this weapon
+            if (GameManager.Instance.score < purchaseCost)
+            {
+                Debug.Log($"Not enough points to buy {weaponToBuy}. Need {purchaseCost}, have {GameManager.Instance.score}.");
+                return;
+            }
+
+            // Deduct cost and unlock the weapon for real
+            GameManager.Instance.AddScore(-purchaseCost);
+            weaponManager.UnlockWeapon(weaponToBuy);
+            weaponManager.EquipWeapon(weaponToBuy);
             Debug.Log($"Purchased weapon asset: {weaponToBuy} for {purchaseCost} points.");
-            UnlockWeaponType(weaponManager, weaponToBuy);
         }
         else
         {
-            // Logic check for purchasing an ammo crate fill for an existing asset
-            Debug.Log($"Refilled ammunition reserves for {weaponToBuy} for {ammoRefillCost} points.");
+            // Check if the player can afford an ammo refill
+            if (GameManager.Instance.score < ammoRefillCost)
+            {
+                Debug.Log($"Not enough points to refill {weaponToBuy}. Need {ammoRefillCost}, have {GameManager.Instance.score}.");
+                return;
+            }
+
+            GameManager.Instance.AddScore(-ammoRefillCost);
             RefillWeaponAmmoPool(weaponManager, weaponToBuy);
+            Debug.Log($"Refilled ammunition reserves for {weaponToBuy} for {ammoRefillCost} points.");
         }
 
         // Trigger interactive response audio cues if available
-        // if (AudioManager.Instance != null) AudioManager.Instance.Play2DSFX(AudioManager.Instance.purchaseSuccessClip);
-    }
-
-    private bool CheckWeaponOwnership(WeaponManager wm, WeaponManager.WeaponType type)
-    {
-        // Simple placeholder checking logic (expandable based on inventory lists)
-        return wm.currentWeapon == type;
-    }
-
-    private void UnlockWeaponType(WeaponManager wm, WeaponManager.WeaponType type)
-    {
-        wm.currentWeapon = type;
-        RefillWeaponAmmoPool(wm, type);
+        if (AudioManager.Instance != null && AudioManager.Instance.purchaseSuccessClip != null)
+        {
+            AudioManager.Instance.Play2DSFX(AudioManager.Instance.purchaseSuccessClip);
+        }
     }
 
     private void RefillWeaponAmmoPool(WeaponManager wm, WeaponManager.WeaponType type)
@@ -53,12 +62,12 @@ public class WeaponPurchaseWall : MonoBehaviour
         // Safely set clips back up to their design caps using custom global stats
         if (type == WeaponManager.WeaponType.Pistol)
         {
-            wm.currentPistolAmmo = 12;
+            wm.currentPistolAmmo = wm.maxPistolClip;
             wm.reservePistolAmmo = 60;
         }
         else if (type == WeaponManager.WeaponType.AR)
         {
-            wm.currentARAmmo = 30;
+            wm.currentARAmmo = wm.maxARClip;
             wm.reserveARAmmo = 180;
         }
     }
