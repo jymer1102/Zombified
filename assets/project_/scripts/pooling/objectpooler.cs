@@ -45,32 +45,55 @@ public class ObjectPooler : MonoBehaviour
     }
 
     /// <summary>
-    /// Fetches an available, inactive zombie from the pool.
+    /// Fetches an available, inactive zombie from the pool, defaulting to the Regular tier.
+    /// Kept for backward compatibility with any code that doesn't care about tier.
     /// </summary>
     public GameObject GetPooledZombie(Vector3 spawnPosition, Quaternion spawnRotation)
     {
+        return GetPooledZombie(spawnPosition, spawnRotation, ZombieHealth.ZombieTier.Regular);
+    }
+
+    /// <summary>
+    /// Fetches an available, inactive zombie from the pool and sets its tier
+    /// (Regular / Strong / Boss) before activating it.
+    /// </summary>
+    public GameObject GetPooledZombie(Vector3 spawnPosition, Quaternion spawnRotation, ZombieHealth.ZombieTier tier)
+    {
+        GameObject zombie = FindInactiveZombie();
+
+        if (zombie == null && zombiePrefab != null)
+        {
+            // Optional expansion fallback: if the pool runs dry, generate an extra one
+            zombie = Instantiate(zombiePrefab);
+            zombie.transform.SetParent(this.transform);
+            pooledZombies.Add(zombie);
+        }
+
+        if (zombie == null) return null;
+
+        // Set tier BEFORE activating, so OnEnable() in ZombieHealth picks up the right health pool
+        ZombieHealth health = zombie.GetComponent<ZombieHealth>();
+        if (health != null)
+        {
+            health.tier = tier;
+        }
+
+        zombie.transform.position = spawnPosition;
+        zombie.transform.rotation = spawnRotation;
+        zombie.SetActive(true);
+
+        return zombie;
+    }
+
+    GameObject FindInactiveZombie()
+    {
         for (int i = 0; i < pooledZombies.Count; i++)
         {
-            // Find a zombie that isn't currently active in the game world
             if (!pooledZombies[i].activeInHierarchy)
             {
-                GameObject zombie = pooledZombies[i];
-                zombie.transform.position = spawnPosition;
-                zombie.transform.rotation = spawnRotation;
-                zombie.SetActive(true);
-                return zombie;
+                return pooledZombies[i];
             }
         }
-
-        // Optional expansion fallback: if the pool runs dry, generate an extra one
-        if (zombiePrefab != null)
-        {
-            GameObject obj = Instantiate(zombiePrefab, spawnPosition, spawnRotation);
-            obj.transform.SetParent(this.transform);
-            pooledZombies.Add(obj);
-            return obj;
-        }
-
         return null;
     }
 }
