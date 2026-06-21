@@ -8,12 +8,18 @@ public class GrenadeProjectile : MonoBehaviour
     public float blastRadius = 6.0f;
     public float explosionDamage = 150f;
 
+    [Header("Throw Physics")]
+    public float throwForce = 18f;
+    public float upwardArc = 3f;
+
     private float fuseTimer = 0f;
     private bool hasExploded = false;
+    private Rigidbody rb;
 
     void Start()
     {
         fuseTimer = fuseDuration;
+        rb = GetComponent<Rigidbody>();
     }
 
     void Update()
@@ -23,6 +29,19 @@ public class GrenadeProjectile : MonoBehaviour
         {
             Explode();
         }
+    }
+
+    /// <summary>
+    /// Launches the grenade forward and upward from the throw origin.
+    /// Called immediately after instantiation by PlayerCombat.
+    /// </summary>
+    public void Launch(Vector3 direction)
+    {
+        if (rb == null) rb = GetComponent<Rigidbody>();
+        if (rb == null) return;
+
+        Vector3 launchVelocity = (direction * throwForce) + (Vector3.up * upwardArc);
+        rb.linearVelocity = launchVelocity;
     }
 
     void Explode()
@@ -37,7 +56,10 @@ public class GrenadeProjectile : MonoBehaviour
         }
 
         // Trigger global 3D spatial sound effect at this exact position
-        // if (AudioManager.Instance != null) AudioManager.Instance.Play3DSFX(AudioManager.Instance.explosionClip, transform.position);
+        if (AudioManager.Instance != null && AudioManager.Instance.explosionClip != null)
+        {
+            AudioManager.Instance.Play3DSFX(AudioManager.Instance.explosionClip, transform.position);
+        }
 
         // Find all physical objects caught within the spherical explosion radius
         Collider[] hitColliders = Physics.OverlapSphere(transform.position, blastRadius);
