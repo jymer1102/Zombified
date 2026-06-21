@@ -90,4 +90,13 @@ public class ZombieHealth : MonoBehaviour, IDamageable
     {
         return maxHealth > 0 ? currentHealth / maxHealth : 0f;
     }
+
+    /// <summary>
+    /// Returns true if the given amount of incoming damage would kill this zombie.
+    /// Used by PlayerCombat to decide whether the hitmarker should flash red (kill) or white (hit).
+    /// </summary>
+    public bool WouldDie(float incomingDamage)
+    {
+        return !isDead && (currentHealth - incomingDamage) <= 0f;
+    }
 }
