@@ -68,10 +68,10 @@ public class UIManager : MonoBehaviour
             levelText.text = $"LEVEL {GameManager.Instance.currentLevel}";
         }
 
-        // Display how many kills they have towards the target goal
+        // Display how many kills they have towards the target goal, against the real per-level quota
         if (progressText != null)
         {
-            progressText.text = $"Kills: {GameManager.Instance.currentKillsInLevel}";
+            progressText.text = $"Kills: {GameManager.Instance.currentKillsInLevel} / {GameManager.Instance.killsNeededPerLevel}";
         }
     }
 }
