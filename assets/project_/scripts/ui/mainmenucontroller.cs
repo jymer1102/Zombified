@@ -44,16 +44,53 @@ public class MainMenuController : MonoBehaviour
     }
 
     /// <summary>
-    /// Triggers the level loader to launch Level 1.
+    /// Starts a brand new run from Level 1, wiping any in-progress stats
+    /// (health, score, kill counts) back to defaults first.
     /// </summary>
-    public void StartGame()
+    public void StartNewGame()
     {
         Debug.Log("Starting ZOMBIFIED... Initializing Level 1 Map.");
-        
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.ResetForNewGame();
+        }
+
         if (LevelSceneManager.Instance != null)
         {
-            // Start the player on Level 1
             LevelSceneManager.Instance.LoadMapForLevel(1);
+        }
+        else
+        {
+            Debug.LogError("LevelSceneManager instance missing. Cannot load map.");
+        }
+    }
+
+    /// <summary>
+    /// Continues from the player's highest previously-unlocked level,
+    /// using the saved progress from SaveSystem. Falls back to a new game
+    /// if no save data exists yet.
+    /// </summary>
+    public void ContinueGame()
+    {
+        int highestLevel = 1;
+
+        if (SaveSystem.Instance != null)
+        {
+            highestLevel = SaveSystem.Instance.LoadHighestLevel();
+        }
+
+        Debug.Log($"Continuing ZOMBIFIED... Loading Level {highestLevel}.");
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.ResetForNewGame();
+            GameManager.Instance.currentLevel = highestLevel;
+        }
+
+        if (LevelSceneManager.Instance != null)
+        {
+            LevelSceneManager.Instance.LoadMapForLevel(highestLevel);
         }
         else
         {
