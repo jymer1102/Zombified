@@ -42,10 +42,12 @@ public class PlayerMovement : MonoBehaviour
     private float slideTimer;
     private float currentSlideSpeed;
 
-    // Public read-only hooks for other systems (e.g. ZombieAI stealth checks)
+    // Public read-only hooks for other systems (e.g. ZombieAI stealth checks, CameraEffects sway)
     public bool IsCrouching => isCrouching || isProne || isSliding;
     public bool IsProne => isProne;
     public bool IsSliding => isSliding;
+    public bool IsSprinting => isSprinting;
+    public bool IsMoving => controller != null && controller.velocity.sqrMagnitude > 0.1f;
 
     void Start()
     {
@@ -53,9 +55,38 @@ public class PlayerMovement : MonoBehaviour
         currentStamina = maxStamina;
         controller.height = standingHeight;
 
+        LoadSavedSensitivity();
+
         // Locks the mouse cursor to the center of the screen for absolute control
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+    }
+
+    /// <summary>
+    /// Pulls the saved mouse sensitivity from SaveSystem (if it exists) so it
+    /// persists between play sessions instead of resetting every launch.
+    /// </summary>
+    void LoadSavedSensitivity()
+    {
+        if (SaveSystem.Instance != null)
+        {
+            mouseSensitivity = SaveSystem.Instance.LoadSensitivity();
+        }
+    }
+
+    /// <summary>
+    /// Updates sensitivity at runtime and saves it. Call this from a settings
+    /// slider's OnValueChanged event.
+    /// </summary>
+    public void SetMouseSensitivity(float newSensitivity)
+    {
+        mouseSensitivity = newSensitivity;
+
+        if (SaveSystem.Instance != null)
+        {
+            float currentVolume = AudioManager.Instance != null ? AudioManager.Instance.GetMasterVolume() : 1.0f;
+            SaveSystem.Instance.SaveSettings(currentVolume, mouseSensitivity);
+        }
     }
 
     void Update()
