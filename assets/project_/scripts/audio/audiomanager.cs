@@ -14,9 +14,18 @@ public class AudioManager : MonoBehaviour
     public AudioClip knifeSlashClip;
     public AudioClip reloadClip;
 
+    [Header("Grenade Audio Clips")]
+    public AudioClip grenadeThrowClip;
+    public AudioClip explosionClip;
+
     [Header("Zombie Audio Clips")]
     public AudioClip zombieGroanClip;
     public AudioClip zombieDeathClip;
+    public AudioClip zombieAttackClip;
+
+    [Header("Interaction Audio Clips")]
+    public AudioClip pickupClip;
+    public AudioClip purchaseSuccessClip;
 
     void Awake()
     {
@@ -40,7 +49,7 @@ public class AudioManager : MonoBehaviour
         musicSource.Play();
     }
 
-    // Plays standard flat 2D sound effects (UI clicks, inventory swaps)
+    // Plays standard flat 2D sound effects (UI clicks, gunshots, inventory swaps)
     public void Play2DSFX(AudioClip clip, float volume = 1f)
     {
         if (sfxSource == null || clip == null) return;
