@@ -48,13 +48,18 @@ public class HorrorUIManager : MonoBehaviour
 
     /// <summary>
     /// Renders UI layout string data using custom typographic structural styling rules.
+    /// Now takes both current and max health so it always shows an accurate percentage,
+    /// even if maxHealth ever changes from the default 100.
     /// </summary>
-    public void UpdateHealthText(int currentHealth)
+    public void UpdateHealthText(int currentHealth, int maxHealth)
     {
         if (healthDisplayLabel == null) return;
-        
+
+        int healthPercent = maxHealth > 0 ? Mathf.RoundToInt(((float)currentHealth / maxHealth) * 100f) : 0;
+        healthPercent = Mathf.Clamp(healthPercent, 0, 100);
+
         // Formats string with rich-text tag formatting directly supported by Unity text engines
         // Uses hex coloring for dark crimson text styling
-        healthDisplayLabel.text = $"<color=#8B0000><size=34>VITALS:</size></color> <color=#FF0000><b>{currentHealth}%</b></color>";
+        healthDisplayLabel.text = $"<color=#8B0000><size=34>VITALS:</size></color> <color=#FF0000><b>{healthPercent}%</b></color>";
     }
 }
