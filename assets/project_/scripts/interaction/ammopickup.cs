@@ -39,6 +39,12 @@ public class AmmoPickup : MonoBehaviour
                     break;
             }
 
+            // Trigger a small 2D pickup sound cue if available
+            if (AudioManager.Instance != null && AudioManager.Instance.pickupClip != null)
+            {
+                AudioManager.Instance.Play2DSFX(AudioManager.Instance.pickupClip);
+            }
+
             Debug.Log($"Successfully picked up {type}!");
             // Destroy the pickup item from the map after it's collected
             Destroy(gameObject);
