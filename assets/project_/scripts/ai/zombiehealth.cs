@@ -3,8 +3,18 @@ using Project.Interfaces;
 
 public class ZombieHealth : MonoBehaviour, IDamageable
 {
-    [Header("Health Settings")]
-    public float maxHealth = 100f;
+    public enum ZombieTier { Regular, Strong, Boss }
+
+    [Header("Tier Settings")]
+    [Tooltip("Set this per-prefab: Regular zombie, Strong (bigger/tougher), or the level Boss.")]
+    public ZombieTier tier = ZombieTier.Regular;
+
+    [Header("Health Settings (set automatically based on Tier, or override manually)")]
+    public float regularHealth = 100f;
+    public float strongHealth = 220f;
+    public float bossHealth = 600f;
+
+    private float maxHealth;
     private float currentHealth;
 
     private bool isDead = false;
@@ -18,8 +28,19 @@ public class ZombieHealth : MonoBehaviour, IDamageable
     void OnEnable()
     {
         // Reset state values whenever the object gets pulled from the pool
+        maxHealth = GetHealthForTier(tier);
         currentHealth = maxHealth;
         isDead = false;
+    }
+
+    float GetHealthForTier(ZombieTier t)
+    {
+        switch (t)
+        {
+            case ZombieTier.Strong: return strongHealth;
+            case ZombieTier.Boss: return bossHealth;
+            default: return regularHealth;
+        }
     }
 
     /// <summary>
@@ -30,7 +51,7 @@ public class ZombieHealth : MonoBehaviour, IDamageable
         if (isDead) return;
 
         currentHealth -= damageAmount;
-        Debug.Log($"{gameObject.name} took {damageAmount} damage. Health remaining: {currentHealth}");
+        Debug.Log($"{gameObject.name} ({tier}) took {damageAmount} damage. Health remaining: {currentHealth}/{maxHealth}");
 
         // Interrupt their attack/chase path to play a stagger effect
         if (zombieAI != null && currentHealth > 0f)
@@ -47,7 +68,7 @@ public class ZombieHealth : MonoBehaviour, IDamageable
     void Die()
     {
         isDead = true;
-        Debug.Log($"{gameObject.name} has been eliminated!");
+        Debug.Log($"{gameObject.name} ({tier}) has been eliminated!");
 
         // Update the level tracking system
         if (GameManager.Instance != null)
@@ -63,5 +84,10 @@ public class ZombieHealth : MonoBehaviour, IDamageable
 
         // Return to pool instead of calling Destroy(gameObject)
         gameObject.SetActive(false);
+    }
+
+    public float GetHealthPercentage()
+    {
+        return maxHealth > 0 ? currentHealth / maxHealth : 0f;
     }
 }
