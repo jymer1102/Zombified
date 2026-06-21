@@ -10,6 +10,8 @@ public class ZombieAI : MonoBehaviour
 
     [Header("Detection Settings")]
     public float lookRadius = 15f;
+    [Tooltip("Detection radius used when the player is crouching with the headlamp off (stealth mode).")]
+    public float stealthLookRadius = 4f;
     public float attackRadius = 2f;
     public float patrolRadius = 10f;
 
@@ -20,11 +22,16 @@ public class ZombieAI : MonoBehaviour
 
     [Header("Flinch Mechanics")]
     public float flinchDuration = 0.4f;
+    [Tooltip("Brief window after a flinch ends where new hits can't immediately re-trigger flinch. Stops stunlock.")]
+    public float flinchImmunityWindow = 0.25f;
     private float flinchTimer = 0f;
+    private float flinchImmunityTimer = 0f;
 
     private NavMeshAgent agent;
     private Transform playerTarget;
     private Vector3 patrolTarget;
+    private HeadlampController playerHeadlamp;
+    private PlayerMovement playerMovement;
 
     void Awake()
     {
@@ -37,6 +44,7 @@ public class ZombieAI : MonoBehaviour
         currentState = AIState.Idle;
         attackTimer = 0f;
         flinchTimer = 0f;
+        flinchImmunityTimer = 0f;
         FindPlayerTarget();
         ChooseNewPatrolPoint();
     }
@@ -51,6 +59,7 @@ public class ZombieAI : MonoBehaviour
 
         // Handle cooldown timers
         if (attackTimer > 0) attackTimer -= Time.deltaTime;
+        if (flinchImmunityTimer > 0) flinchImmunityTimer -= Time.deltaTime;
 
         // Execute behaviors based on current state
         switch (currentState)
@@ -79,6 +88,8 @@ public class ZombieAI : MonoBehaviour
         if (player != null)
         {
             playerTarget = player.transform;
+            playerHeadlamp = player.GetComponentInChildren<HeadlampController>();
+            playerMovement = player.GetComponent<PlayerMovement>();
         }
     }
 
@@ -117,14 +128,15 @@ public class ZombieAI : MonoBehaviour
         agent.SetDestination(playerTarget.position);
 
         float distanceToPlayer = Vector3.Distance(transform.position, playerTarget.position);
-        
+        float effectiveLookRadius = GetEffectiveLookRadius();
+
         // Target is close enough to claw/bite
         if (distanceToPlayer <= attackRadius)
         {
             currentState = AIState.Attack;
         }
-        // Lost track of player
-        else if (distanceToPlayer > lookRadius)
+        // Lost track of player (using a slightly larger radius than detection so they don't flicker in/out)
+        else if (distanceToPlayer > effectiveLookRadius * 1.5f)
         {
             ChooseNewPatrolPoint();
             currentState = AIState.Patrol;
@@ -160,6 +172,11 @@ public class ZombieAI : MonoBehaviour
         attackTimer = attackRate;
         Debug.Log($"{gameObject.name} slashed the player!");
 
+        if (AudioManager.Instance != null && AudioManager.Instance.zombieAttackClip != null)
+        {
+            AudioManager.Instance.Play3DSFX(AudioManager.Instance.zombieAttackClip, transform.position);
+        }
+
         if (GameManager.Instance != null)
         {
             GameManager.Instance.TakeDamage(attackDamage);
@@ -168,11 +185,13 @@ public class ZombieAI : MonoBehaviour
 
     /// <summary>
     /// Forces the AI to break out of its current path and stumble backward momentarily.
-    /// Called directly by Weapon hit systems.
+    /// Called directly by Weapon hit systems. Ignored if still in the post-flinch immunity window,
+    /// which stops rapid fire from permanently stunlocking the zombie.
     /// </summary>
     public void TriggerFlinch()
     {
         if (currentState == AIState.Flinch) return;
+        if (flinchImmunityTimer > 0f) return;
 
         currentState = AIState.Flinch;
         flinchTimer = flinchDuration;
@@ -186,8 +205,21 @@ public class ZombieAI : MonoBehaviour
         if (flinchTimer <= 0f)
         {
             // Re-evaluate what to do after recovering from shock
+            flinchImmunityTimer = flinchImmunityWindow;
             currentState = AIState.Chase;
         }
+    }
+
+    /// <summary>
+    /// Returns the detection range that should currently apply: the small stealth radius if the
+    /// player is crouching with their headlamp off, or the normal full radius otherwise.
+    /// </summary>
+    float GetEffectiveLookRadius()
+    {
+        bool playerIsStealthy = playerMovement != null && playerMovement.IsCrouching
+                                 && (playerHeadlamp == null || !playerHeadlamp.IsHeadlampActive());
+
+        return playerIsStealthy ? stealthLookRadius : lookRadius;
     }
 
     bool EvaluatePlayerDetection()
@@ -195,7 +227,9 @@ public class ZombieAI : MonoBehaviour
         if (playerTarget == null) return false;
 
         float distance = Vector3.Distance(transform.position, playerTarget.position);
-        if (distance <= lookRadius)
+        float effectiveLookRadius = GetEffectiveLookRadius();
+
+        if (distance <= effectiveLookRadius)
         {
             currentState = AIState.Chase;
             return true;
