@@ -10,8 +10,10 @@ public class ZombieAI : MonoBehaviour
 
     [Header("Detection Settings")]
     public float lookRadius = 15f;
-    [Tooltip("Detection radius used when the player is crouching with the headlamp off (stealth mode).")]
+    [Tooltip("Detection radius used when the player is crouching in darkness (true stealth).")]
     public float stealthLookRadius = 4f;
+    [Tooltip("Detection radius used when crouching but still lit up by a nearby light source - partial stealth.")]
+    public float litCrouchLookRadius = 9f;
     public float attackRadius = 2f;
     public float patrolRadius = 10f;
 
@@ -30,7 +32,6 @@ public class ZombieAI : MonoBehaviour
     private NavMeshAgent agent;
     private Transform playerTarget;
     private Vector3 patrolTarget;
-    private HeadlampController playerHeadlamp;
     private PlayerMovement playerMovement;
 
     void Awake()
@@ -88,7 +89,6 @@ public class ZombieAI : MonoBehaviour
         if (player != null)
         {
             playerTarget = player.transform;
-            playerHeadlamp = player.GetComponentInChildren<HeadlampController>();
             playerMovement = player.GetComponent<PlayerMovement>();
         }
     }
@@ -211,15 +211,24 @@ public class ZombieAI : MonoBehaviour
     }
 
     /// <summary>
-    /// Returns the detection range that should currently apply: the small stealth radius if the
-    /// player is crouching with their headlamp off, or the normal full radius otherwise.
+    /// Returns the detection range that should currently apply, using three tiers:
+    /// - Standing or moving normally: full lookRadius, light doesn't matter
+    /// - Crouching in good light: litCrouchLookRadius (partial stealth - you're trying, but visible)
+    /// - Crouching in near-total darkness: stealthLookRadius (true stealth - the README's promise)
     /// </summary>
     float GetEffectiveLookRadius()
     {
-        bool playerIsStealthy = playerMovement != null && playerMovement.IsCrouching
-                                 && (playerHeadlamp == null || !playerHeadlamp.IsHeadlampActive());
+        if (playerMovement == null || !playerMovement.IsCrouching)
+        {
+            return lookRadius;
+        }
 
-        return playerIsStealthy ? stealthLookRadius : lookRadius;
+        // Crouching - now check how lit up the player actually is using real light detection
+        float lightLevel = AmbientLightDetector.Instance != null ? AmbientLightDetector.Instance.GetLightLevel() : 0f;
+
+        // Blend between full stealth and partial stealth based on how lit the player is,
+        // rather than a hard on/off switch - feels more natural than a binary "in light / not in light"
+        return Mathf.Lerp(stealthLookRadius, litCrouchLookRadius, lightLevel);
     }
 
     bool EvaluatePlayerDetection()
