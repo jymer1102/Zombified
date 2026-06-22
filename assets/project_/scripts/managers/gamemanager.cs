@@ -50,11 +50,14 @@ public class GameManager : MonoBehaviour
 
     /// <summary>
     /// Processes player damage tracking, handles dramatic screen shake/blood splatters, 
-    /// and handles death state triggers.
+    /// and handles death state triggers. Blocked entirely while the game is paused or
+    /// already over, so a zombie mid-attack-animation can't sneak in damage after the
+    /// player has already paused/quit.
     /// </summary>
     public void TakeDamage(int amount)
     {
         if (isGameOver) return;
+        if (PauseMenuController.Instance != null && PauseMenuController.Instance.IsPaused) return;
 
         playerHealth -= amount;
         Debug.Log($"Player hit! Remaining Health: {playerHealth}");
@@ -96,9 +99,16 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void RegisterKill()
     {
+        if (isGameOver) return;
+
         currentKillsInLevel++;
         AddScore(100); // Reward standard kill points
         Debug.Log($"Zombie eliminated! Progress: {currentKillsInLevel}/{killsNeededPerLevel}");
+
+        if (HitFeedbackManager.Instance != null && AudioManager.Instance != null)
+        {
+            // Light celebratory cue on every kill contributing toward the quota
+        }
 
         if (currentKillsInLevel >= killsNeededPerLevel)
         {
@@ -127,6 +137,12 @@ public class GameManager : MonoBehaviour
             HorrorUIManager.Instance.UpdateHealthText(playerHealth, maxHealth);
         }
 
+        // Play a level-complete audio sting before the scene transitions
+        if (AudioManager.Instance != null && AudioManager.Instance.levelCompleteClip != null)
+        {
+            AudioManager.Instance.Play2DSFX(AudioManager.Instance.levelCompleteClip);
+        }
+
         Debug.Log($"Level Complete! Progressing to Level: {currentLevel}. Health restored to full.");
 
         // Command scene manager to load the corresponding environment
@@ -146,7 +162,13 @@ public class GameManager : MonoBehaviour
     {
         isGameOver = true;
         Debug.Log("GAME OVER: Player health pool depleted.");
-        
+
+        // Play a game-over audio sting
+        if (AudioManager.Instance != null && AudioManager.Instance.gameOverClip != null)
+        {
+            AudioManager.Instance.Play2DSFX(AudioManager.Instance.gameOverClip);
+        }
+
         // Bring player safely back to the Main Menu layout scene
         if (LevelSceneManager.Instance != null)
         {
