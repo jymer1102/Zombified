@@ -4,7 +4,7 @@
 
 An upcoming 3D web shooter. Dodge waves of zombies in an immersive, fully-rendered 3D arena directly in your browser. Accessible on your school computer.
 
----
+</div>
 	
 	•Levels of difficulty
 	⁃	1 through 5
