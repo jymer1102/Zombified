@@ -2,9 +2,7 @@
 
 # Zombified
 
----
-
-![README Banner](favicon.png)
+![README Banner](images/favicon/favicon.png)
 
 ---
 
